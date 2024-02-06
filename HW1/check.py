@@ -54,11 +54,11 @@ def check_problem(p, search_method, timeout):
 def solve_problems(problems):
     solved = 0
     for problem in problems:
-        try:
-            p = ex1.create_onepiece_problem(problem)
-        except Exception as e:
-            print("Error creating problem: ", e)
-            return None
+        # try:
+        p = ex1.create_onepiece_problem(problem)
+        # except Exception as e:
+        #     print("Error creating problem: ", e)
+        #     return None
         timeout = 60
         result = check_problem(p, (lambda p: search.astar_search(p, p.h)), timeout)
         print("A* ", result)
@@ -78,7 +78,7 @@ def main():
                 ['B', 'S', 'S', 'S'],
                 ['S', 'S', 'S', 'S']
             ],
-            "pirate_ship": {"pirate_ship_1", (2, 0)},
+            "pirate_ships": {"pirate_ship_1": (2, 0)},
             "treasures": {'treasure_1': (0, 2)},
             "marine_ships": {'marine_1': [(1, 1), (1, 2), (2, 2), (2, 1)]}
         },
@@ -91,7 +91,7 @@ def main():
                 ['S', 'S', 'S', 'I', 'S'],
                 ['S', 'S', 'S', 'S', 'S']
             ],
-            "pirate_ship": {"pirate_ship_1", (2, 0)},
+            "pirate_ships": {"pirate_ship_1": (2, 0)},
             "treasures": {'treasure_1': (0, 2), 'treasure_2': (3, 3)},
             "marine_ships": {
                 'marine_1': [(1, 1), (1, 2), (2, 2), (2, 1), (3, 1)],

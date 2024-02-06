@@ -3,11 +3,12 @@
 The way to use this code is to subclass Problem to create a class of problems,
 then create problem instances and solve them with calls to the various search
 functions."""
+import copy
 
 from utils import (
     is_in, argmin, argmax, argmax_random_tie, probability, weighted_sampler,
     memoize, print_table, open_data, Stack, FIFOQueue, PriorityQueue, name,
-    distance
+    distance, hashabledict
 )
 
 from collections import defaultdict
@@ -147,7 +148,46 @@ def astar_search(problem, h=None):
     # Function to calculate f(n) = g(n) + h(n)
     # Memoize this function for better performance
     f = memoize(lambda n: n.path_cost + h(n), 'f')
+    cur_node = Node(problem.initial)
+    open = [cur_node]
 
-    # TODO: Implement the rest of the A* search algorithm
+    distances = {hashify_state(cur_node.state):0} #TODO maybe switch to hash
+    closed = []
+    while(len(open) > 0):
+        open = sorted(open, key=f)
+        cur_node = open.pop(0)
+        if cur_node.state not in closed or cur_node.path_cost < distances[hashify_state(cur_node.state)]:
+            closed.append(cur_node.state)
+            distances[hashify_state(cur_node.state)] = cur_node.path_cost
+            if problem.goal_test(cur_node.state):
+                return cur_node.solution()
+            for a in problem.actions(cur_node.state):
+                s = problem.result(cur_node.state, a)
+                new_node = Node(s,cur_node, a, cur_node.path_cost + 1)
+                if problem.h(s)<float('inf'):
+                    open.append(new_node)
 
-    return None
+    return "unsolvable"
+
+
+
+def hashify_state(state):
+    state = copy.deepcopy(state)
+    for key in state["pirate_ships"].keys():
+        state["pirate_ships"][key] = tuple(state["pirate_ships"][key])
+    for key in state["treasures"].keys():
+        state["treasures"][key][1] = hashabledict(state["treasures"][key][1])
+        state["treasures"][key] = tuple(state["treasures"][key])
+    for key in state["marine_ships"].keys():
+        state["marine_ships"][key] = tuple(state["marine_ships"][key])
+    state["map"] = tuple(tuple(row) for row in state["map"])
+    state["treasures"] = hashabledict(state["treasures"])
+
+    state["pirate_ships"] = hashabledict(state["pirate_ships"])
+
+    state["marine_ships"] = hashabledict(state["marine_ships"])
+
+
+    return hashabledict(state)
+
+

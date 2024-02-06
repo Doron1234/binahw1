@@ -1,5 +1,5 @@
 import itertools
-
+import copy
 import search
 import random
 import math
@@ -17,17 +17,19 @@ class OnePieceProblem(search.Problem):
         search.Problem.__init__(self, initial) creates the root node"""
         search.Problem.__init__(self, initial)
         self.state = initial
-        for key,value in self.state["pirate_ships"]:
-            self.state["pirate_ships"][key] = (value,0)
+        for key,value in self.state["pirate_ships"].items():
+            self.state["pirate_ships"][key] = [value,0]
 
-        treasures = self.state["treasure"]
-        for key,value in treasures.items():
+        treasures = self.state["treasures"]
+        for key, value in treasures.items():
             treasures[key] = [value,{ship:0 for ship in self.state["pirate_ships"].keys()}]
-            treasures[key]["base"]=0
+            treasures[key][1]["base"]=0
 
         marines = self.state["marine_ships"]
-        for key,value in marines:
+        for key, value in marines.items():
             marines[key]+=reversed(marines[key][1:-1])
+
+
 
     def actions(self, state):
         """Returns all the actions that can be executed in the given
@@ -39,17 +41,25 @@ class OnePieceProblem(search.Problem):
             pos = data[0]
             #sail actions:
             for i in range(4):
-                new_pos =pos[i%2]+i//2
-                if state["map"][new_pos]!="I":
+                if i==1:
+                    new_pos = (pos[0],pos[1]+1)
+                elif i==2:
+                    new_pos = (pos[0],pos[1]-1)
+                elif i==3:
+                    new_pos = (pos[0]+1,pos[1])
+                elif i==0:
+                    new_pos = (pos[0]-1,pos[1])
+                if new_pos[0]>=0 and new_pos[0]<len(state["map"]) and new_pos[1]>=0 and new_pos[1]<len(state["map"][0]) and state["map"][new_pos[0]][new_pos[1]]!="I":
                     actions.append(("sail",pirate,new_pos))
             #collecting actions
-            for treasure,data in state["treasures"].items():
-                t_pos = data[0]
-                if self.manh_dist(t_pos,pos)==1:
-                    actions.append(("collect_treasure",pirate,treasure))
+            if state["pirate_ships"][pirate][1]<2:
+                for treasure,data in state["treasures"].items():
+                    t_pos = data[0]
+                    if self.manh_dist(t_pos,pos)==1:
+                        actions.append(("collect_treasure",pirate,treasure))
             #deposit
-            if state["map"][pos]=="B":
-                actions.append(("deposit_treasures",pirate))
+            if state["map"][pos[0]][pos[1]]=="B":
+                actions.append(("deposit_treasure",pirate))
             pirates_actions.append(actions)
 
         return list(itertools.product(*pirates_actions))
@@ -67,7 +77,7 @@ class OnePieceProblem(search.Problem):
         action in the given state. The action must be one of
         self.actions(state)."""
         ships_num = len(state["pirate_ships"])
-        new_state = state.copy()
+        new_state = copy.deepcopy(state)
         for i in range(ships_num):
             act = action[i]
             if act[0] == "sail":
@@ -81,16 +91,15 @@ class OnePieceProblem(search.Problem):
                     if data[1][act[1]]>=1:
                         new_state["treasures"][name][1][act[1]]=0
                         new_state["treasures"][name][1]["base"]+=1
-                        new_state["pirate_ships"][act[1]][1] -= 1
+                        new_state["pirate_ships"][act[1]][1] = 0
+        new_state
 
         #move marines
 
         for marine,data in new_state["marine_ships"].items():
-            new_state["marine_ships"][marine]+=new_state["marine_ships"][marine].pop(0)
+            new_state["marine_ships"][marine].append(new_state["marine_ships"][marine].pop(0))
 
         new_state = self.check_collision(new_state)
-
-        #TODO: add collisions
 
         return new_state
 
