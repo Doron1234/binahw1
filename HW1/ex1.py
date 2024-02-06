@@ -28,7 +28,7 @@ class OnePieceProblem(search.Problem):
         marines = self.state["marine_ships"]
         for key, value in marines.items():
             marines[key]+=reversed(marines[key][1:-1])
-
+        self.base = self.state["pirate_ships"]["pirate_ship_1"][0]
 
 
     def actions(self, state):
@@ -58,7 +58,7 @@ class OnePieceProblem(search.Problem):
                     if self.manh_dist(t_pos,pos)==1:
                         actions.append(("collect_treasure",pirate,treasure))
             #deposit
-            if state["map"][pos[0]][pos[1]]=="B":
+            if state["map"][pos[0]][pos[1]]=="B" and state["pirate_ships"][pirate][1] > 0:
                 actions.append(("deposit_treasure",pirate))
             pirates_actions.append(actions)
 
@@ -92,8 +92,6 @@ class OnePieceProblem(search.Problem):
                         new_state["treasures"][name][1][act[1]]=0
                         new_state["treasures"][name][1]["base"]+=1
                         new_state["pirate_ships"][act[1]][1] = 0
-        new_state
-
         #move marines
 
         for marine,data in new_state["marine_ships"].items():
@@ -121,11 +119,68 @@ class OnePieceProblem(search.Problem):
                 return False
         return True
 
+    def h1(self, node):
+        count = 0
+        s = node.state
+        for t_name,value in s["treasures"].items():
+            count+=1
+            for ship,num in value[1].items():
+                if num==1:
+                    count-=1
+                break
+        return count/len(s["pirate_ships"])
+
+    def h2(self,node):
+        s = node.state
+        sum = 0
+        for t_name, value in s["treasures"].items():
+            pos = value[0]
+            posses = []
+            for i in range(4):
+                if i == 1:
+                    new_pos = (pos[0], pos[1] + 1)
+                elif i == 2:
+                    new_pos = (pos[0], pos[1] - 1)
+                elif i == 3:
+                    new_pos = (pos[0] + 1, pos[1])
+                elif i == 0:
+                    new_pos = (pos[0] - 1, pos[1])
+                if new_pos[0] >= 0 and new_pos[0] < len(s["map"]) and new_pos[1] >= 0 and new_pos[1] < len(
+                        s["map"][0]) and s["map"][new_pos[0]][new_pos[1]] == "S":
+                    posses.append(new_pos)
+            if value[1]["base"]==1:
+                sum+=1
+                break
+            for pirate,value in value[1].items():
+                if pirate == "base":
+                    continue
+                elif value == 1:
+                    pos = s["pirate_ships"][pirate][0]
+                    for i in range(4):
+                        if i == 1:
+                            new_pos = (pos[0], pos[1] + 1)
+                        elif i == 2:
+                            new_pos = (pos[0], pos[1] - 1)
+                        elif i == 3:
+                            new_pos = (pos[0] + 1, pos[1])
+                        elif i == 0:
+                            new_pos = (pos[0] - 1, pos[1])
+                        if new_pos[0] >= 0 and new_pos[0] < len(s["map"]) and new_pos[1] >= 0 and new_pos[1] < len(
+                                s["map"][0]) and s["map"][new_pos[0]][new_pos[1]] == "S":
+                            posses.append(new_pos)
+            if len(posses)==0:
+                return float('inf')
+            sum+= min([self.manh_dist(x,self.base) for x in posses])
+        return sum/len(s["pirate_ships"])
+
+
+
+
     def h(self, node):
         """ This is the heuristic. It gets a node (not a state,
         state can be accessed via node.state)
         and returns a goal distance estimate"""
-        return 0
+        return self.h2(node)
 
     """Feel free to add your own functions
     (-2, -2, None) means there was a timeout"""

@@ -151,20 +151,20 @@ def astar_search(problem, h=None):
     cur_node = Node(problem.initial)
     open = [cur_node]
 
-    distances = {hashify_state(cur_node.state):0} #TODO maybe switch to hash
+    distances = {hash(hashify_state(cur_node.state)):0} #TODO maybe switch to hash
     closed = []
     while(len(open) > 0):
         open = sorted(open, key=f)
         cur_node = open.pop(0)
-        if cur_node.state not in closed or cur_node.path_cost < distances[hashify_state(cur_node.state)]:
+        if cur_node.state not in closed or cur_node.path_cost < distances[hash(hashify_state(cur_node.state))]:
             closed.append(cur_node.state)
-            distances[hashify_state(cur_node.state)] = cur_node.path_cost
+            distances[hash(hashify_state(cur_node.state))] = cur_node.path_cost
             if problem.goal_test(cur_node.state):
                 return cur_node.solution()
             for a in problem.actions(cur_node.state):
                 s = problem.result(cur_node.state, a)
                 new_node = Node(s,cur_node, a, cur_node.path_cost + 1)
-                if problem.h(s)<float('inf'):
+                if problem.h(new_node)<float('inf'):
                     open.append(new_node)
 
     return "unsolvable"
