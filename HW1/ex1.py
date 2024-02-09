@@ -59,8 +59,9 @@ class OnePieceProblem(search.Problem):
         You should change the initial to your own representation.
         search.Problem.__init__(self, initial) creates the root node"""
         search.Problem.__init__(self, initial)
+        self.start = True
         self.id = 0
-        # self.h_chosen = "normal"
+        #self.h_chosen = "normal"
         self.h_chosen = h_chosen
         self.state = initial
         self.state["damaged"] = False
@@ -87,79 +88,6 @@ class OnePieceProblem(search.Problem):
             self.state["order"] = order
             self.full_path = order
             self.costs = []
-
-        if self.h_chosen == "follow_sol":
-            ships_num = len(self.state["pirate_ships"])
-            treasures = list(self.state["treasures"].keys())
-            partitions = divide_list_into_k_sublists(treasures,ships_num)
-            optimal_solution = None
-            min_len = float('inf')
-            t0 = time.time()
-            for partition in partitions:
-                max_len = 0
-                solutions = []
-                for i in range(1,ships_num+1):
-                    send_state = copy.deepcopy(self.state)
-                    send_state["pirate_ships"] = {f"pirate_ship_{i}":send_state["pirate_ships"][f"pirate_ship_{i}"]}
-                    send_state["treasures"] = {}
-                    for treasure in partition[i-1]:
-                        send_state["treasures"][treasure] = self.state["treasures"][treasure]
-                    p = OnePieceProblem(send_state,prebuilt=True,h_chosen = "solo_ship")
-                    ass = astar_search(p)
-                    if ass is not None:
-                        plan = ass.solution()
-                        l = len(plan)
-                        if l>max_len:
-                            max_len = l
-                        solutions.append(plan)
-                    else:
-                        max_len = float('inf')
-                if max_len<min_len:
-                    min_len = max_len
-                    optimal_solution = solutions
-            if min_len == float('inf'):
-                self.solution = "Unsolvable"
-            else:
-                self.solution = (self.solutionafy(optimal_solution,min_len))
-            print()
-            print(f"time: {time.time()-t0}")
-
-
-        #h special stuff:
-        if self.h_chosen == "solo_ship":
-            chosen_plan = None
-            shortest = float('inf')
-            defect = False
-            if len(self.state["treasures"])%2 == 1:
-                self.state["treasures"]["defect"] = None
-                defect = True
-            temp = list(itertools.permutations(self.state["treasures"].keys()))
-            for i,ord in enumerate(temp):
-                #print(i/len(temp))
-                ord = [value for pair in zip(ord[::2], ord[1::2]) for value in pair + ("base",)] #TODO: remove the duplicate the rises from using defects (a,defect = defect,a)
-                if defect:
-                    ord.remove("defect")
-                    del self.state["treasures"]["defect"]
-                #print(self.state["treasures"].keys())
-                #print(ord)
-                p = OnePieceProblem(copy.deepcopy(self.state),order = ord,prebuilt=True,h_chosen = "order")
-                if defect:
-                    self.state["treasures"]["defect"] = None
-                ass = astar_search(p)
-                if ass is not None:
-                    plan = ass.solution()
-                    l = len(plan)
-                    if l < shortest:
-                        chosen_plan = plan
-                        shortest = l
-            if chosen_plan is None:
-                self.solution = "unsolvable"
-            else:
-                self.solution = chosen_plan
-            if defect:
-                del self.state["treasures"]["defect"]
-        if self.h_chosen == "solo_ship":
-            self.h_chosen = "follow_sol"
 
     def assign_id(self):
         #self.id+=1
@@ -411,6 +339,82 @@ class OnePieceProblem(search.Problem):
         """ This is the heuristic. It gets a node (not a state,
         state can be accessed via node.state)
         and returns a goal distance estimate"""
+        if self.start:
+            if self.h_chosen == "follow_sol":
+                ships_num = len(self.state["pirate_ships"])
+                treasures = list(self.state["treasures"].keys())
+                partitions = divide_list_into_k_sublists(treasures, ships_num)
+                optimal_solution = None
+                min_len = float('inf')
+                t0 = time.time()
+                for partition in partitions:
+                    max_len = 0
+                    solutions = []
+                    for i in range(1, ships_num + 1):
+                        send_state = copy.deepcopy(self.state)
+                        send_state["pirate_ships"] = {
+                            f"pirate_ship_{i}": send_state["pirate_ships"][f"pirate_ship_{i}"]}
+                        send_state["treasures"] = {}
+                        for treasure in partition[i - 1]:
+                            send_state["treasures"][treasure] = self.state["treasures"][treasure]
+                        p = OnePieceProblem(send_state, prebuilt=True, h_chosen="solo_ship")
+                        ass = astar_search(p)
+                        if ass is not None:
+                            plan = ass.solution()
+                            l = len(plan)
+                            if l > max_len:
+                                max_len = l
+                            solutions.append(plan)
+                        else:
+                            max_len = float('inf')
+                    if max_len < min_len:
+                        min_len = max_len
+                        optimal_solution = solutions
+                if min_len == float('inf'):
+                    self.solution = "Unsolvable"
+                else:
+                    self.solution = (self.solutionafy(optimal_solution, min_len))
+                print()
+                print(f"time: {time.time() - t0}")
+
+            # h special stuff:
+            if self.h_chosen == "solo_ship":
+                chosen_plan = None
+                shortest = float('inf')
+                defect = False
+                if len(self.state["treasures"]) % 2 == 1:
+                    self.state["treasures"]["defect"] = None
+                    defect = True
+                temp = list(itertools.permutations(self.state["treasures"].keys()))
+                for i, ord in enumerate(temp):
+                    # print(i/len(temp))
+                    ord = [value for pair in zip(ord[::2], ord[1::2]) for value in pair + (
+                    "base",)]  # TODO: remove the duplicate the rises from using defects (a,defect = defect,a)
+                    if defect:
+                        ord.remove("defect")
+                        del self.state["treasures"]["defect"]
+                    # print(self.state["treasures"].keys())
+                    # print(ord)
+                    p = OnePieceProblem(copy.deepcopy(self.state), order=ord, prebuilt=True, h_chosen="order")
+                    if defect:
+                        self.state["treasures"]["defect"] = None
+                    ass = astar_search(p)
+                    if ass is not None:
+                        plan = ass.solution()
+                        l = len(plan)
+                        if l < shortest:
+                            chosen_plan = plan
+                            shortest = l
+                if chosen_plan is None:
+                    self.solution = "unsolvable"
+                else:
+                    self.solution = chosen_plan
+                if defect:
+                    del self.state["treasures"]["defect"]
+            if self.h_chosen == "solo_ship":
+                self.h_chosen = "follow_sol"
+            self.start = False
+
         if self.h_chosen=="follow_sol":
             return self.h_follow_sol(node)
         if self.h_chosen=="order":
