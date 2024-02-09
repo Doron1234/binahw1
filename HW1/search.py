@@ -161,8 +161,7 @@ def astar_search(problem, h=None):
         open = sorted(open, key=f)
         cur_node = open.pop(0)
         sorting_time+=time.time()-t
-        if cur_node not in closed: #or cur_node.path_cost < distances[hashify_state(cur_node.state)]:
-            time.sleep(0.01)
+        if cur_node not in closed or cur_node.path_cost < distances[hashify_state(cur_node.state)]:
             closed.append(cur_node)
             distances[hashify_state(cur_node.state)] = cur_node.path_cost
             if problem.goal_test(cur_node.state):
@@ -172,6 +171,8 @@ def astar_search(problem, h=None):
             # print(cur_node.state["id"])
             # print(cur_node.state["pirate_ships"]["pirate_ship_1"])
             # print(cur_node.state["treasures"])
+            # print(cur_node.path_cost)
+            #print(cur_node.state["last_move"])
             # print(cur_node.state["order"])
             for a in problem.actions(cur_node.state):
                 s = problem.result(cur_node.state, a)
@@ -180,9 +181,10 @@ def astar_search(problem, h=None):
                     open.append(new_node)
         # else:
         #     print("duplicate detected!")
-        #print(len(closed))
+        # print(f"cur_num: {len(open)}")
+        # print(f"explored: {len(closed)}")
 
-    return "unsolvable"
+    return None
 
 
 

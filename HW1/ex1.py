@@ -5,6 +5,7 @@ import random
 import math
 import heapq
 from search import astar_search
+import time
 
 ids = ["209993591", "Doron's id"]
 
@@ -18,13 +19,37 @@ def manh_dist(x, y):
 def biased_manh_dist(x, y):
     return abs(x[0] - y[0])+ abs(x[1] - y[1]) + 1
 
+def zipafy(list_of_lists):
+    if not list_of_lists:
+        return []  # Return an empty list if the input list is empty
+
+    num_elements = len(list_of_lists[0])
+    result_list = []
+
+    for i in range(num_elements):
+        tuple_from_each_list = tuple(inner_list[i][0] for inner_list in list_of_lists)
+        result_list.append(tuple_from_each_list)
+
+    return result_list
 
 def create_neighboring_list(coord):
     x, y = coord
     result_list = [(x + 1, y), (x - 1, y), (x, y - 1), (x, y + 1)]
     return result_list
 
+def divide_list_into_k_sublists(my_list, k):
+    n = len(my_list)
+    all_partitions = []
 
+    # Generate all possible combinations of indices for k non-empty sublists
+    index_combinations = itertools.combinations(range(1, n), k - 1)
+
+    for indices in index_combinations:
+        partition = [my_list[i:j] for i, j in zip((0,) + indices, indices + (n,))]
+        if all(partition):
+            all_partitions.append(tuple(partition))
+
+    return all_partitions
 
 class OnePieceProblem(search.Problem):
     """This class implements a medical problem according to problem description file"""
@@ -35,11 +60,13 @@ class OnePieceProblem(search.Problem):
         search.Problem.__init__(self, initial) creates the root node"""
         search.Problem.__init__(self, initial)
         self.id = 0
+        # self.h_chosen = "normal"
         self.h_chosen = h_chosen
         self.state = initial
         self.state["damaged"] = False
         self.state["id"] = self.assign_id()
-        self.state["last_move"] = "start"
+        if self.h_chosen == "follow_sol":
+            self.state["last_move"] = "start"
         if not prebuilt:
             for key,value in self.state["pirate_ships"].items():
                 self.state["pirate_ships"][key] = [value,0]
@@ -52,15 +79,54 @@ class OnePieceProblem(search.Problem):
             marines = self.state["marine_ships"]
             for key, value in marines.items():
                 marines[key]+=reversed(marines[key][1:-1])
-        self.base = self.state["pirate_ships"]["pirate_ship_1"][0]
+        self.base = self.state["pirate_ships"][list(self.state["pirate_ships"].keys())[0]][0]
 
         self.order_bol = False
         if order is not None:
             self.order_bol = True
             self.state["order"] = order
+            self.full_path = order
+            self.costs = []
 
-            #h special stuff:
-        if not self.order_bol:
+        if self.h_chosen == "follow_sol":
+            ships_num = len(self.state["pirate_ships"])
+            treasures = list(self.state["treasures"].keys())
+            partitions = divide_list_into_k_sublists(treasures,ships_num)
+            optimal_solution = None
+            min_len = float('inf')
+            t0 = time.time()
+            for partition in partitions:
+                max_len = 0
+                solutions = []
+                for i in range(1,ships_num+1):
+                    send_state = copy.deepcopy(self.state)
+                    send_state["pirate_ships"] = {f"pirate_ship_{i}":send_state["pirate_ships"][f"pirate_ship_{i}"]}
+                    send_state["treasures"] = {}
+                    for treasure in partition[i-1]:
+                        send_state["treasures"][treasure] = self.state["treasures"][treasure]
+                    p = OnePieceProblem(send_state,prebuilt=True,h_chosen = "solo_ship")
+                    ass = astar_search(p)
+                    if ass is not None:
+                        plan = ass.solution()
+                        l = len(plan)
+                        if l>max_len:
+                            max_len = l
+                        solutions.append(plan)
+                    else:
+                        max_len = float('inf')
+                if max_len<min_len:
+                    min_len = max_len
+                    optimal_solution = solutions
+            if min_len == float('inf'):
+                self.solution = "Unsolvable"
+            else:
+                self.solution = (self.solutionafy(optimal_solution,min_len))
+            print()
+            print(f"time: {time.time()-t0}")
+
+
+        #h special stuff:
+        if self.h_chosen == "solo_ship":
             chosen_plan = None
             shortest = float('inf')
             defect = False
@@ -80,17 +146,34 @@ class OnePieceProblem(search.Problem):
                 if defect:
                     self.state["treasures"]["defect"] = None
                 ass = astar_search(p)
-                plan = ass.solution()
-                l = len(plan)
-                if l<shortest:
-                    chosen_plan=plan
-                    shortest = l
-            self.solution = chosen_plan
+                if ass is not None:
+                    plan = ass.solution()
+                    l = len(plan)
+                    if l < shortest:
+                        chosen_plan = plan
+                        shortest = l
+            if chosen_plan is None:
+                self.solution = "unsolvable"
+            else:
+                self.solution = chosen_plan
             if defect:
                 del self.state["treasures"]["defect"]
+        if self.h_chosen == "solo_ship":
+            self.h_chosen = "follow_sol"
+
     def assign_id(self):
         #self.id+=1
         return self.id
+
+    def solutionafy(self, solutions, length):
+        for i,sol in enumerate(solutions):
+            while len(sol)<length:
+                sol.append((("wait",f"pirate_ship_{i+1}"),))
+        # solutions += ["" for x in range(length)]
+        #print(solutions)
+        res = zipafy(solutions)
+        #print(res)
+        return res
 
     def actions(self, state):
         """Returns all the actions that can be executed in the given
@@ -130,11 +213,7 @@ class OnePieceProblem(search.Problem):
                         actions.append(("collect_treasure",pirate,treasure))
             #deposit
             if state["map"][pos[0]][pos[1]]=="B" and state["pirate_ships"][pirate][1] > 0:
-                if self.order_bol:
-                    if state["order"][0] == "base":
-                        actions.append(("deposit_treasure", pirate))
-                else:
-                    actions.append(("deposit_treasure",pirate))
+                actions.append(("deposit_treasure",pirate))
             pirates_actions.append(actions)
 
         return list(itertools.product(*pirates_actions))
@@ -149,7 +228,8 @@ class OnePieceProblem(search.Problem):
         new_state["id"] = self.assign_id()
         if self.order_bol:
             new_state["order"] = new_state["order"].copy()
-        new_state["last_move"] = action
+        if self.h_chosen == "follow_sol":
+            new_state["last_move"] = action
         for i in range(ships_num):
             act = action[i]
             if act[0] == "sail":
@@ -267,6 +347,10 @@ class OnePieceProblem(search.Problem):
         return sum/len(s["pirate_ships"])
 
     def h_follow_sol(self,node):
+        # print(node.state["last_move"])
+        # print(self.solution[node.path_cost-1])
+        if self.solution == "unsolvable":
+            return float('inf')
         if node.state["last_move"] == self.solution[node.path_cost-1]:
             return 0
         else:
@@ -277,8 +361,9 @@ class OnePieceProblem(search.Problem):
         if s["damaged"]:
             return float('inf')
         sum = 0
-        old_pos = [s["pirate_ships"]["pirate_ship_1"][0]]
+        old_pos = [s["pirate_ships"][list(s["pirate_ships"].keys())[0]][0]]
         for treasure in s["order"]:
+            new_old = []
             if treasure == "base":
                 pos = [self.base]
             else:
@@ -289,8 +374,11 @@ class OnePieceProblem(search.Problem):
                     d = biased_manh_dist(x,y)
                     if d<cur_min:
                         cur_min = d
+                        new_old = [y]
+                    elif d==cur_min:
+                        new_old.append(y)
             sum+=cur_min
-            old_pos = pos
+            old_pos = new_old
         return sum
 
     def h_order_state(self,node):
@@ -298,8 +386,9 @@ class OnePieceProblem(search.Problem):
         if s["damaged"]:
             return float('inf')
         sum = 0
-        old_pos = [s["pirate_ships"]["pirate_ship_1"][0]]
+        old_pos = [s["pirate_ships"][list(s["pirate_ships"].keys())][0]]
         for treasure in s["order"]:
+            new_old = []
             if treasure == "base":
                 pos = [self.base]
             else:
@@ -307,11 +396,14 @@ class OnePieceProblem(search.Problem):
             cur_min = float('inf')
             for x in old_pos:
                 for y in pos:
-                    d = biased_manh_dist(x,y)
-                    if d<cur_min:
+                    d = biased_manh_dist(x, y)
+                    if d < cur_min:
                         cur_min = d
-            sum+=cur_min
-            old_pos = pos
+                        new_old = [y]
+                    elif d == cur_min:
+                        new_old.append(y)
+            sum += cur_min
+            old_pos = new_old
         return sum
 
 
