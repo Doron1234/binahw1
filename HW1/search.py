@@ -16,6 +16,7 @@ import math
 import random
 import sys
 import bisect
+import time
 
 infinity = float('inf')
 
@@ -151,21 +152,35 @@ def astar_search(problem, h=None):
     cur_node = Node(problem.initial)
     open = [cur_node]
 
-    distances = {hash(hashify_state(cur_node.state)):0} #TODO maybe switch to hash
+    sorting_time = 0
+
+    distances = {hashify_state(cur_node.state):0} #TODO maybe switch to hash
     closed = []
     while(len(open) > 0):
+        t = time.time()
         open = sorted(open, key=f)
         cur_node = open.pop(0)
-        if cur_node.state not in closed or cur_node.path_cost < distances[hash(hashify_state(cur_node.state))]:
-            closed.append(cur_node.state)
-            distances[hash(hashify_state(cur_node.state))] = cur_node.path_cost
+        sorting_time+=time.time()-t
+        if cur_node not in closed: #or cur_node.path_cost < distances[hashify_state(cur_node.state)]:
+            time.sleep(0.01)
+            closed.append(cur_node)
+            distances[hashify_state(cur_node.state)] = cur_node.path_cost
             if problem.goal_test(cur_node.state):
-                return cur_node.solution()
+                #print(sorting_time)
+                return cur_node
+            # print("checking actions of:")
+            # print(cur_node.state["id"])
+            # print(cur_node.state["pirate_ships"]["pirate_ship_1"])
+            # print(cur_node.state["treasures"])
+            # print(cur_node.state["order"])
             for a in problem.actions(cur_node.state):
                 s = problem.result(cur_node.state, a)
                 new_node = Node(s,cur_node, a, cur_node.path_cost + 1)
-                if problem.h(new_node)<float('inf'):
+                if h(new_node)<float('inf'):
                     open.append(new_node)
+        # else:
+        #     print("duplicate detected!")
+        #print(len(closed))
 
     return "unsolvable"
 
@@ -183,11 +198,16 @@ def hashify_state(state):
     state["map"] = tuple(tuple(row) for row in state["map"])
     state["treasures"] = hashabledict(state["treasures"])
 
+    if "order" in state.keys():
+        state["order"] = tuple(state["order"])
+
     state["pirate_ships"] = hashabledict(state["pirate_ships"])
 
     state["marine_ships"] = hashabledict(state["marine_ships"])
-
-
-    return hashabledict(state)
+    id = state["id"]
+    del state["id"]
+    ret = hashabledict(state)
+    state["id"] = id
+    return ret
 
 
