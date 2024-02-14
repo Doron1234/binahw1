@@ -10,7 +10,6 @@ import tqdm
 
 ids = ["209993591", "Doron's id"]
 
-
 def manh_dist(x, y):
     distance = 0
     for i in range(2):
@@ -65,8 +64,12 @@ class miniproblem(search.Problem):
         for key in initial["pirate_ships"].keys():
             self.pirate_name = key
         self.state["pirate_ships"] = initial["pirate_ships"][key]
+        #self.state["seen"] = 0
         self.state["finished"] = 0
         self.marine_ships = initial["marine_ships"]
+        self.mod = 1
+        for path in self.marine_ships.values():
+            self.mod *= len(path)
         self.state["damaged"] = False
         self.initial = initial
         for x in range(len(self.map)):
@@ -74,6 +77,7 @@ class miniproblem(search.Problem):
                 if self.map[x][y] == "B":
                     self.base = (x, y)
         self.treasures = initial["treasures"] + [self.base]
+        self.treasure_names = initial["treasure_names"]
 
 
     def actions(self, state):
@@ -99,16 +103,16 @@ class miniproblem(search.Problem):
             #collecting actions
             if state["pirate_ships"][1]<2:
                 counter = 0
-                for treasure in self.treasures[:-1]:
+                for i,treasure in enumerate(self.treasures[:-1]):
                     if state["pirate_ships"][1] == 0:
-                        if manh_dist(treasure,pos)==1 and self.map[pos[0]][pos[1]] == "S" and counter == 0:
-                            actions.append(("collect_treasure",self.pirate_name,treasure))
-                    else:
-                        if manh_dist(treasure, pos) == 1 and self.map[pos[0]][pos[1]] == "S" and counter == 1:
-                            actions.append(("collect_treasure", self.pirate_name, treasure))
+                        if manh_dist(treasure,pos)==1 and self.map[pos[0]][pos[1]] == "S" and counter == 0: #and i==0:
+                            actions.append(("collect_treasure",self.pirate_name, self.treasure_names[i]))
+                    elif state["pirate_ships"][1]<2:
+                        if manh_dist(treasure, pos) == 1 and self.map[pos[0]][pos[1]] == "S" and counter == 1: # and i==1:
+                            actions.append(("collect_treasure", self.pirate_name, self.treasure_names[i]))
                     counter += 1
             #deposit
-            if self.map[pos[0]][pos[1]]=="B" and state["pirate_ships"][1] > 0:
+            if self.map[pos[0]][pos[1]]=="B" and state["pirate_ships"][1] == len(self.treasure_names):
                 actions.append(("deposit_treasure",self.pirate_name))
             pirates_actions.append(actions)
 
@@ -126,12 +130,15 @@ class miniproblem(search.Problem):
             if act[0] == "sail":
                 new_state["pirate_ships"][0] = act[2]
             elif act[0] == "collect_treasure":
+                #new_state["seen"] +=1
                 new_state["pirate_ships"][1]+=1
             elif act[0] == "deposit_treasure":
+                #if len(self.treasure_names) == new_state["seen"]:
                 new_state["finished"] = 1
+                #new_state["pirate_ships"][1]=0
 
         #move marines
-        new_state["offset"] = state["offset"] + 1
+        new_state["offset"] = (state["offset"] + 1)%self.mod
 
         # print(new_state["order"])
         new_state = self.check_collision(new_state)
@@ -163,7 +170,7 @@ class miniproblem(search.Problem):
         """ Given a state, checks if this is the goal state.
          Returns True if it is, False otherwise."""
         if state["finished"] == 1:
-                return True
+            return True
         return False
 
     def h(self, node):
@@ -425,10 +432,10 @@ class OnePieceProblem(search.Problem):
         return sum/len(s["pirate_ships"])
 
     def h_follow_sol(self,node):
-        print(node)
-        print(self.solution)
         # print(node.state["last_move"])
         # print(self.solution[node.path_cost-1])
+        # print()
+        # print(self.solution)
         if self.solution == "unsolvable":
             return float('inf')
         if node.state["last_move"] == self.solution[node.path_cost-1]:
@@ -518,7 +525,9 @@ class OnePieceProblem(search.Problem):
                                 max_len = l
                             solutions.append(plan)
                         else:
-                            max_len = float('inf')
+                            self.start = False
+                            self.solution = "unsolvable"
+                            return float('inf')
                     if max_len < min_len:
                         min_len = max_len
                         optimal_solution = solutions
@@ -526,8 +535,8 @@ class OnePieceProblem(search.Problem):
                     self.solution = "Unsolvable"
                 else:
                     self.solution = (self.solutionafy(optimal_solution, min_len))
-                print()
-                print(f"time: {time.time() - t0}")
+                # print()
+                # print(f"time: {time.time() - t0}")
 
             # h special stuff:
             if self.h_chosen == "solo_ship":
@@ -538,21 +547,21 @@ class OnePieceProblem(search.Problem):
                     self.state["treasures"]["defect"] = None
                     defect = True
                 temp = list(itertools.permutations(self.state["treasures"].keys()))
+                temp = [[value for pair in zip(ord[::2], ord[1::2]) for value in pair + (
+                    "base",)] for ord in temp]
                 if defect == True:
-                    temp = [a.remove("defect") for a in temp]
+                    [x.remove("defect") for x in temp]
                     del self.state["treasures"]["defect"]
+                    # temp = list(set(temp)) # TODO: remove duplicates in a proper way
+                #print(temp)
                 for i, ord in enumerate(temp):
                     # print(i/len(temp))
-                    ord = [value for pair in zip(ord[::2], ord[1::2]) for value in pair + (
-                    "base",)]  # TODO: remove the duplicate the rises from using defects (a,defect = defect,a)
-                    if defect:
-                        ord.remove("defect")
                     t1 = time.time()
                     temp_len = 0
                     temp_sol = None
                     temp_plan = []
+                    # print()
                     for lst in split_list_by_base(ord):
-                        print(f"running on {lst}")
                         mini_state = {}
                         mini_state["map"] = self.map
                         mini_state["treasures"] = []
@@ -560,24 +569,30 @@ class OnePieceProblem(search.Problem):
                             if treas != "base":
                                 mini_state["treasures"] += self.state["treasures"][treas][:-1]
                         mini_state["marine_ships"] = self.state["marine_ships"]
-                        mini_state["pirate_ships"] = {"pirate_ship_1": copy.deepcopy(self.state["pirate_ships"]["pirate_ship_1"])}
+                        pirate_name = list(self.state["pirate_ships"].keys())[0]
+                        mini_state["pirate_ships"] = {pirate_name: copy.deepcopy(self.state["pirate_ships"][pirate_name])}
+                        mini_state["treasure_names"] = lst[:-1]
                         p = miniproblem(mini_state, offset=temp_len)
                         ass = astar_search(p)
                         if ass is not None:
+                            # print(lst)
                             temp_plan += ass.solution()
                             temp_len = len(temp_plan)
                         else:
-                            break
+                            self.solution = "unsolvable"
+                            return float('inf')
                     if ass is not None:
                         if temp_len < shortest:
                             chosen_plan = temp_plan
+                            #print(chosen_plan)
+                            #print(len(chosen_plan))
                             shortest = temp_len
                     else:
+                        #print("hello")
                         self.solution = "unsolvable"
                         break
-                    t2 = time.time()
-                    print(t2-t1)
-                print(chosen_plan)
+                    # t2 = time.time()
+                    # print(t2-t1)
                 if chosen_plan is None:
                     self.solution = "unsolvable"
                 else:

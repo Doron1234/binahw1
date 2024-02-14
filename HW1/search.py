@@ -153,11 +153,12 @@ def astar_search(problem, h=None):
     open = [cur_node]
 
     sorting_time = 0
-
+    # print(problem.state)
     if isinstance(problem.state["pirate_ships"], list):
         distances = {hashify_state2(cur_node.state): 0}  # TODO maybe switch to hash
         closed = []
         while(len(open) > 0):
+            #print(len(open))
             t = time.time()
             open = sorted(open, key=f)
             cur_node = open.pop(0)
@@ -167,13 +168,15 @@ def astar_search(problem, h=None):
                 distances[hashify_state2(cur_node.state)] = cur_node.path_cost
                 if problem.goal_test(cur_node.state):                    #print(sorting_time)
                     return cur_node
+                # print(cur_node.state)
                 # print("checking actions of:")
-                # print(cur_node.state["id"])
-                # print(cur_node.state["pirate_ships"]["pirate_ship_1"])
-                # print(cur_node.state["treasures"])
+                # #print(cur_node.state["id"])
+                # print(cur_node.state["pirate_ships"][0])
+                #print(cur_node.state["treasures"])
                 # print(cur_node.path_cost)
+
                 #print(cur_node.state["last_move"])
-                # print(cur_node.state["order"])
+                #print(cur_node.state["order"])
                 for a in problem.actions(cur_node.state):
                     s = problem.result(cur_node.state, a)
                     new_node = Node(s,cur_node, a, cur_node.path_cost + 1)
@@ -183,6 +186,7 @@ def astar_search(problem, h=None):
         distances = {hashify_state(cur_node.state): 0}  # TODO maybe switch to hash
         closed = []
         while (len(open) > 0):
+            #print(len(open))
             t = time.time()
             open = sorted(open, key=f)
             cur_node = open.pop(0)
