@@ -149,44 +149,73 @@ def astar_search(problem, h=None):
     # Function to calculate f(n) = g(n) + h(n)
     # Memoize this function for better performance
     f = memoize(lambda n: n.path_cost + h(n), 'f')
-    cur_node = Node(problem.initial)
+    cur_node = Node(problem.state)
     open = [cur_node]
 
     sorting_time = 0
 
-    distances = {hashify_state(cur_node.state):0} #TODO maybe switch to hash
-    closed = []
-    while(len(open) > 0):
-        t = time.time()
-        open = sorted(open, key=f)
-        cur_node = open.pop(0)
-        sorting_time+=time.time()-t
-        if cur_node not in closed or cur_node.path_cost < distances[hashify_state(cur_node.state)]:
-            closed.append(cur_node)
-            distances[hashify_state(cur_node.state)] = cur_node.path_cost
-            if problem.goal_test(cur_node.state):
-                #print(sorting_time)
-                return cur_node
-            # print("checking actions of:")
-            # print(cur_node.state["id"])
-            # print(cur_node.state["pirate_ships"]["pirate_ship_1"])
-            # print(cur_node.state["treasures"])
-            # print(cur_node.path_cost)
-            #print(cur_node.state["last_move"])
-            # print(cur_node.state["order"])
-            for a in problem.actions(cur_node.state):
-                s = problem.result(cur_node.state, a)
-                new_node = Node(s,cur_node, a, cur_node.path_cost + 1)
-                if h(new_node)<float('inf'):
-                    open.append(new_node)
-        # else:
-        #     print("duplicate detected!")
-        # print(f"cur_num: {len(open)}")
-        # print(f"explored: {len(closed)}")
+    if isinstance(problem.state["pirate_ships"], list):
+        distances = {hashify_state2(cur_node.state): 0}  # TODO maybe switch to hash
+        closed = []
+        while(len(open) > 0):
+            t = time.time()
+            open = sorted(open, key=f)
+            cur_node = open.pop(0)
+            sorting_time+=time.time()-t
+            if cur_node not in closed or cur_node.path_cost < distances[hashify_state2(cur_node.state)]:
+                closed.append(cur_node)
+                distances[hashify_state2(cur_node.state)] = cur_node.path_cost
+                if problem.goal_test(cur_node.state):                    #print(sorting_time)
+                    return cur_node
+                # print("checking actions of:")
+                # print(cur_node.state["id"])
+                # print(cur_node.state["pirate_ships"]["pirate_ship_1"])
+                # print(cur_node.state["treasures"])
+                # print(cur_node.path_cost)
+                #print(cur_node.state["last_move"])
+                # print(cur_node.state["order"])
+                for a in problem.actions(cur_node.state):
+                    s = problem.result(cur_node.state, a)
+                    new_node = Node(s,cur_node, a, cur_node.path_cost + 1)
+                    if h(new_node)<float('inf'):
+                        open.append(new_node)
+    else:
+        distances = {hashify_state(cur_node.state): 0}  # TODO maybe switch to hash
+        closed = []
+        while (len(open) > 0):
+            t = time.time()
+            open = sorted(open, key=f)
+            cur_node = open.pop(0)
+            sorting_time += time.time() - t
+            if cur_node not in closed or cur_node.path_cost < distances[hashify_state(cur_node.state)]:
+                closed.append(cur_node)
+                distances[hashify_state(cur_node.state)] = cur_node.path_cost
+                if problem.goal_test(cur_node.state):
+                    # print(sorting_time)
+                    return cur_node
+                # print("checking actions of:")
+                # print(cur_node.state["id"])
+                # print(cur_node.state["pirate_ships"]["pirate_ship_1"])
+                # print(cur_node.state["treasures"])
+                # print(cur_node.path_cost)
+                # print(cur_node.state["last_move"])
+                # print(cur_node.state["order"])
+                for a in problem.actions(cur_node.state):
+                    s = problem.result(cur_node.state, a)
+                    new_node = Node(s, cur_node, a, cur_node.path_cost + 1)
+                    if h(new_node) < float('inf'):
+                        open.append(new_node)
+            # else:
+            #     print("duplicate detected!")
+            # print(f"cur_num: {len(open)}")
+            # print(f"explored: {len(closed)}")
 
     return None
 
-
+def hashify_state2(state):
+    new_state = copy.deepcopy(state)
+    new_state["pirate_ships"] = tuple(new_state["pirate_ships"])
+    return hashabledict(new_state)
 
 def hashify_state(state):
     state = copy.deepcopy(state)
@@ -197,7 +226,6 @@ def hashify_state(state):
         state["treasures"][key] = tuple(state["treasures"][key])
     for key in state["marine_ships"].keys():
         state["marine_ships"][key] = tuple(state["marine_ships"][key])
-    state["map"] = tuple(tuple(row) for row in state["map"])
     state["treasures"] = hashabledict(state["treasures"])
 
     if "order" in state.keys():
