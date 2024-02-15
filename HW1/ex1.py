@@ -64,7 +64,6 @@ class miniproblem(search.Problem):
         for key in initial["pirate_ships"].keys():
             self.pirate_name = key
         self.state["pirate_ships"] = initial["pirate_ships"][key]
-        #self.state["seen"] = 0
         self.state["finished"] = 0
         self.marine_ships = initial["marine_ships"]
         self.mod = 1
@@ -78,6 +77,8 @@ class miniproblem(search.Problem):
                     self.base = (x, y)
         self.treasures = initial["treasures"] + [self.base]
         self.treasure_names = initial["treasure_names"]
+        self.state["cur_treasures"] = 0
+
 
 
     def actions(self, state):
@@ -112,7 +113,7 @@ class miniproblem(search.Problem):
                             actions.append(("collect_treasure", self.pirate_name, self.treasure_names[i]))
                     counter += 1
             #deposit
-            if self.map[pos[0]][pos[1]]=="B" and state["pirate_ships"][1] == len(self.treasure_names):
+            if self.map[pos[0]][pos[1]]=="B": # and state["pirate_ships"][1] == len(self.treasure_names):
                 actions.append(("deposit_treasure",self.pirate_name))
             pirates_actions.append(actions)
 
@@ -132,9 +133,11 @@ class miniproblem(search.Problem):
             elif act[0] == "collect_treasure":
                 #new_state["seen"] +=1
                 new_state["pirate_ships"][1]+=1
+                new_state["cur_treasures"] += 1
             elif act[0] == "deposit_treasure":
-                #if len(self.treasure_names) == new_state["seen"]:
-                new_state["finished"] = 1
+                new_state["cur_treasures"] = 0
+                if len(self.treasure_names) == new_state["pirate_ships"][1]:
+                    new_state["finished"] = 1
                 #new_state["pirate_ships"][1]=0
 
         #move marines
@@ -161,9 +164,9 @@ class miniproblem(search.Problem):
             pos = data[0]
             for marine,path in self.marine_ships.items():
                 if manh_dist(path[state["offset"]%len(path)],pos)==0:
-                    if state["pirate_ships"][1] > 0:
+                    if state["cur_treasures"] > 0:
                         state["damaged"] = 0
-                        state["pirate_ships"][1] = 0
+                    state["pirate_ships"][1] = state["pirate_ships"][1] - state["cur_treasures"]
         return state
 
     def goal_test(self, state):
