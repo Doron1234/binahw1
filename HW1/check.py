@@ -39,6 +39,7 @@ def check_problem(p, search_method, timeout):
 
     t1 = time.time()
     s = timeout_exec(search_method, args=[p], timeout_duration=timeout)
+    #s = search_method(p)
     t2 = time.time()
     if isinstance(s, search.Node):
         solve = s
