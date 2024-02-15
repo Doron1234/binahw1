@@ -155,7 +155,7 @@ def astar_search(problem, h=None):
     sorting_time = 0
     # print(problem.state)
     if isinstance(problem.state["pirate_ships"], list):
-        distances = {hashify_state2(cur_node.state): 0}  # TODO maybe switch to hash
+        distances = {hashify_state2(cur_node.state): 0}
         closed = []
         while(len(open) > 0):
             #print(len(open))
@@ -184,7 +184,7 @@ def astar_search(problem, h=None):
                     if h(new_node)<float('inf'):
                         open.append(new_node)
     else:
-        distances = {hashify_state(cur_node.state): 0}  # TODO maybe switch to hash
+        distances = {hashify_state(cur_node.state): 0}
         closed = []
         while (len(open) > 0):
             #print(len(open))
