@@ -46,7 +46,7 @@ def largest_num(numbers):
         lst = list((Counter(f) | Counter(lst)).elements())
     return multiplyList(lst)
 
-ids = ["209993591", "Doron's id"]
+ids = ["209993591", "214422750"]
 
 def manh_dist(x, y):
     distance = 0
@@ -79,6 +79,8 @@ def divide_list_into_k_sublists(lst, k):
     if k==1:
         return [[lst]]
     n = len(lst)
+    if n<k:
+        return [[[t] for t in lst]+[[] for i in range(k-n)]]
     first = [lst.pop(0)]
     all = []
     for i in range(n-k+1):
@@ -439,9 +441,12 @@ class OnePieceProblem(search.Problem):
                 if num==1:
                     count-=1
                 break
+        print(s)
+        print(count/len(s["pirate_ships"]))
         return count/len(s["pirate_ships"])
 
     def h2(self,node):
+        print(node)
         s = node.state
         sum = 0
         for t_name, value in s["treasures"].items():
@@ -456,16 +461,15 @@ class OnePieceProblem(search.Problem):
                     new_pos = (pos[0] + 1, pos[1])
                 elif i == 0:
                     new_pos = (pos[0] - 1, pos[1])
-                if new_pos[0] >= 0 and new_pos[0] < len(s["map"]) and new_pos[1] >= 0 and new_pos[1] < len(
-                        s["map"][0]) and s["map"][new_pos[0]][new_pos[1]] == "S":
+                if new_pos[0] >= 0 and new_pos[0] < len(self.map) and new_pos[1] >= 0 and new_pos[1] < len(
+                        self.map[0]) and self.map[new_pos[0]][new_pos[1]] == "S":
                     posses.append(new_pos)
             if value[1]["base"]==1:
-                sum+=1
                 break
             for pirate,value in value[1].items():
                 if pirate == "base":
                     continue
-                elif value == 1:
+                elif value >= 1:
                     pos = s["pirate_ships"][pirate][0]
                     for i in range(4):
                         if i == 1:
@@ -476,12 +480,14 @@ class OnePieceProblem(search.Problem):
                             new_pos = (pos[0] + 1, pos[1])
                         elif i == 0:
                             new_pos = (pos[0] - 1, pos[1])
-                        if new_pos[0] >= 0 and new_pos[0] < len(s["map"]) and new_pos[1] >= 0 and new_pos[1] < len(
-                                s["map"][0]) and s["map"][new_pos[0]][new_pos[1]] == "S":
+                        if new_pos[0] >= 0 and new_pos[0] < len(self.map) and new_pos[1] >= 0 and new_pos[1] < len(
+                                self.map[0]) and self.map[new_pos[0]][new_pos[1]] == "S":
                             posses.append(new_pos)
             if len(posses)==0:
                 return float('inf')
             sum+= min([manh_dist(x, self.base) for x in posses])
+
+
         return sum/len(s["pirate_ships"])
 
     def h_follow_sol(self,node):
